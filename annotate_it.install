@@ -1,0 +1,26 @@
+<?php
+/**
+ * @file
+ * Installation file for annotate_it module.
+ */
+
+function annotate_it_schema() {
+  $schema['annotate_it_data'] = array(
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'annotation_uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),  
+      'text' => array('type' => 'blob'),
+      'ranges' => array('type' => 'blob'),
+      'permissions' => array('type' => 'blob'),
+      'links' => array('type' => 'blob'),
+      'tags' => array('type' => 'blob'),
+      'quote' => array('type' => 'blob'),
+      'node_uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'varchar', 'length' => 255, 'default' => 0),
+   	  'updated' => array('type' => 'varchar', 'length' => 255, 'default' => 0),
+    ),
+    'primary key' => array('id'),
+    );
+  return $schema;
+}

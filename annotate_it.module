@@ -1,0 +1,181 @@
+<?php
+
+/**
+ * @annotate_it
+ */
+
+/**
+ * hook_menu
+ */
+function annotate_it_menu() {
+  $items = array();
+
+  
+	$items['annotations/store'] = array(
+	    'page callback' => 'annotation_store',
+	    'access arguments' => array('access content'),
+	);  
+
+/*	
+	$items['node/%node/annotations'] = array(
+		'title' => 'Annotations',
+		'page callback' => 'node_annotations',
+		'page arguments' => array('node', 1),
+		'access arguments' => array('access content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 100,
+	);	
+*/	
+  
+ return $items; 
+} 
+ 
+ 
+ 
+function annotate_it_init() {
+
+  
+}
+
+function annotate_it_preprocess_node(&$vars){
+	//print_r($vars);
+	if($vars['type'] == 'document'){
+	  global $user;
+	  drupal_add_js(array('annotateItVars' => array('username' => $user->uid, 'nid'=>$vars['nid'])), array('type' => 'setting'));	
+	  drupal_add_js(drupal_get_path('module', 'annotate_it') . '/js/annotator-full.min.js');
+	  drupal_add_js(drupal_get_path('module', 'annotate_it') . '/js/content-annotation.js');
+	  drupal_add_css(drupal_get_path('module', 'annotate_it') . '/css/annotator.min.css');
+ 	}
+	
+}
+
+//Serve Json for annotation store
+function annotation_store() {
+	
+	$requestMethod = $_SERVER['REQUEST_METHOD'];
+	//$resquestContentType = $_SERVER['CONTENT_TYPE'];
+	
+	switch ($requestMethod){
+		case 'POST';
+		case 'PUT';
+			$data = file_get_contents('php://input');
+			$data = json_decode($data);
+			if(isset($data->user) && isset($data->uri)):
+				$node = node_load($data->uri);
+				$ranges =  (isset($data->ranges)) ? serialize($data->ranges) : null;
+				$links =  (isset($data->links)) ? serialize($data->links) : null;
+				$tags =  (isset($data->tags)) ? serialize($data->tags) : null;
+				$permissions =  (isset($data->permissions)) ? serialize($data->permissions) : null;
+			
+			
+			if(isset($data->id)){
+				$recId = db_update('annotate_it_data')
+				->fields(array(
+				  'annotation_uid' => strip_tags($data->user),
+				  'nid' => $node->nid,
+				  'node_uid' => $node->uid,  
+  	 			  'quote' => strip_tags($data->quote),
+				  'text' => strip_tags($data->text),
+				  'permissions' => $permissions,
+				  'links' => $links,
+ 				  'tags' => $tags,
+ 				  'ranges' => $ranges,
+ 				  'created' => REQUEST_TIME,
+ 				  'updated' => REQUEST_TIME, 
+				))
+				->condition('id', $data->id)
+				->execute();			
+			}else{
+				$recId = db_insert('annotate_it_data')
+				->fields(array(
+				  'annotation_uid' => strip_tags($data->user),
+				  'nid' => $node->nid,
+				  'node_uid' => $node->uid,  
+  	 			  'quote' => strip_tags($data->quote),
+				  'text' => strip_tags($data->text),
+				  'permissions' => $permissions,
+				  'links' => $links,
+ 				  'tags' => $tags,
+ 				  'ranges' => $ranges,
+ 				  'created' => REQUEST_TIME,
+ 				  'updated' => REQUEST_TIME, 
+				))->execute();
+			}
+		
+			endif;
+
+			$annotation['id'] = $recId;
+			return drupal_json_output($annotation);
+		break;
+
+		case 'GET':	
+			
+			$nid = strip_tags($_GET['uri']);
+			//$node = node_load($nid);
+	
+	$rows = array();	
+			//return false;
+			  $data = db_select('annotate_it_data')
+	     		->fields('annotate_it_data')
+				->condition('nid', $nid)
+				->execute()
+				->fetchAll();
+			
+			foreach($data as $row){
+				
+				
+				$annotationBy = _get_user_full_name($row->annotation_uid, false);
+				
+				$rowsArray[] = array(
+						  "updated" => "2012-06-23T00:44:33.411399+00:00", 
+					      "links"=> array(), 
+					      "created"=> "2012-06-22T15:15:50.559933+00:00", 
+					      "quote"=> $row->quote,
+					      "tags"=> array(), 
+					      "uri"=> $row->nid, 
+					      "ranges"=> unserialize($row->ranges), 
+					      "user"=> $annotationBy, 
+					      "text"=> $row->text, 
+					      "consumer"=> "", 
+					      "id"=> $row->id, 
+					      "permissions"=> array(
+						  	"read"=> array("group:__world__"),
+						  	"admin"=> array("group:__world__"),
+						  	"update"=> array("group:__world__"),
+						  	"delete"=> array("group:__world__"),
+						  )
+						);
+				}
+				$array = array('rows'=>$rowsArray);
+				return drupal_json_output($array);
+				
+			break;	
+
+		case 'DELETE':
+			$data = file_get_contents('php://input');
+			$data = json_decode($data);		
+			if(isset($data->id)){
+			  $query = db_select('annotate_it_data')
+	     		->fields('annotate_it_data')
+				->condition('id', $data->id)
+				->execute()
+				->fetchAssoc();
+				//compare author of annotation and requested deleter
+				if($query['annotation_uid'] == $data->user){
+					$num_deleted = db_delete('annotate_it_data')
+					  ->condition('id', $data->id)
+					  ->execute();
+				}
+			}
+			
+	       // header("{$_SERVER['SERVER_PROTOCOL']} 200 OK");
+       	   //header('Content-Type: application/json');	
+					
+			break;
+	}//end switch
+	
+	
+	//print_R($_SERVER);
+	//parse_str(, $put_vars);
+
+}//end annotation store

@@ -1,0 +1,4 @@
+name = Annotate it
+description = Annotation plugin
+package = Annotate it
+core = 7.x
